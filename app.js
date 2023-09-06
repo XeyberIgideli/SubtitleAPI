@@ -6,7 +6,7 @@ const port = 4500
 const app = express()
 
 
-app.get('api', scraper)
+app.use('/api', scraper)
 
 app.listen(port, (err) => {
     if(err) {

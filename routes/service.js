@@ -1,11 +1,60 @@
 import express from 'express'
+import axios from 'axios'
+import cheerio from 'cheerio';
+
 
 const router = express.Router()
 
-router.get('/api/:lang/:movieName', getMovie);
+// Search by lang
+router.get('/search/:lang/:movieName', getMovie)
+router.get('/api/:movieName/:lang/:totLink/:num/readSubtitle', readMovieSubtitle)
+
+async function readMovieSubtitle(req,res) {
+  const paramLang =  req.params.lang //req.query.lang.split('.')[0]
+  try {
+      if(paramLang) {
+          const totalLink = req.params.totLink
+          const movieName = req.params.movieName;
+          const movieId = await getMovieId(movieName,paramLang);
+          const movieData = await getSubtitleInfo(movieId,paramLang,totalLink) 
+          const linkNum = movieData.downloadLinks.length <= req.params.num ? movieData.downloadLinks.length - 1 : req.params.num  
+          const url = movieData.downloadLinks[linkNum].downloadLink.split('-')[1]
+          const options =  { 
+              method: 'GET',
+              url,
+              responseType: "arraybuffer"
+          };
+          const { data } = await axios(options);
+          const zip = new admZip(data)
+          const entries = zip.getEntries() 
+          let srtFileStream = null 
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  
+          for (const entry of entries) {
+            if (entry.entryName.endsWith('.srt')) { 
+              const buffer = entry.getData() 
+              srtFileStream = Readable.from(buffer.toString('utf-8'))
+              break
+            }
+          } 
+          
+          if(srtFileStream) {
+              srtFileStream.pipe(res)
+          } else {
+              res.status(404).send('SRT file not found in the zip archive.')
+          }
+      } else {
+          res.status(404).send('No subtitle found in this language!')
+      }
+      
+  } catch (err) {
+      console.log(err)
+      res.status(500).send('Internal server error');
+  }
+}
 
 async function getMovie (req, res) { 
-    // api/tur/the-platform?totalLink=number
+    // @param url: api/tur/the-platform?totalLink=number
 
     let queryTotalLink = req.query.totalLink
     if(!queryTotalLink) {
@@ -15,7 +64,6 @@ async function getMovie (req, res) {
       const paramLang = req.params.lang
       const movieName = req.params.movieName;
       const movieId = await getMovieId(movieName,paramLang);
-
       if (!movieId) {
         throw new Error('Movie not found');
       }
