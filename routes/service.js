@@ -156,17 +156,15 @@ async function getShow (req, res) {
 }
 
 async function getId(mediaName,lang,show) {
-    const searchUrl = `https://www.opensubtitles.org/en/search2/sublanguageid-${lang}/moviename-${encodeURIComponent(
-      mediaName
-    )}`;
+    const searchUrl = `https://www.opensubtitles.org/en/search2/moviename-${mediaName}/sublanguageid-${lang}/sort-3/asc-0`;
     try {
       const searchResponse = await axios.get(searchUrl);
       const $ = cheerio.load(searchResponse.data);
-      const mediaLink = $('.bnone').attr('href'); 
+      const mediaLink = $('.bnone').attr('href');  
       if (!mediaLink) {
         return null;
       }
-      
+
       const mediaId = mediaLink.match(/\/idmovie-(\d+)/);
       if (!mediaId || mediaId.length < 2) {
         return null;
@@ -180,23 +178,41 @@ async function getId(mediaName,lang,show) {
   
 async function getSubtitleInfo(mediaId,lang,totalLink) {
     const movieUrl = `https://www.opensubtitles.org/en/search/sublanguageid-${lang}/idmovie-${mediaId}`
+    const siteUrl = 'https://www.opensubtitles.org'
     try {
       const movieResponse = await axios.get(movieUrl)
       const $ = cheerio.load(movieResponse.data) 
       const singleDwLink = $('#bt-dwl-bt').attr('href')
       if(!singleDwLink) {
         let downloadPageLinks = [] 
+        let episodePages = {}
         const index =  $('.msg h1').text().trim().split(' ').indexOf('subtitles')
         const title = lang.split(',').length > 1 ? $('.msg h1').text().trim().split(' ').slice(0,index).join(' ') : $('.msg h1').text().trim().split(' ').slice(0,-1).join(' ') 
         const language = lang.split(',').length > 1 ? $('.msg h1').text().trim().split(' ').slice(index+1).join(' ') : $('.msg h1').text().trim().split(' ').slice(-1).join(' ')
+        let links 
         const findLinks = $('.bnone').each((index,element) => {
-          downloadPageLinks.push('https://www.opensubtitles.org' + element.attribs.href)
-        });   
-        if (!findLinks) {
-          throw new Error('Download link not found')
-        }   
-        const downloadLinks = await Promise.all(downloadPageLinks.slice(0,totalLink).map(async (link) => await getDownloadLink(link)))
-        return { title,pageLink:movieUrl,language, downloadLinks };
+          downloadPageLinks.push(siteUrl + element.attribs.href)
+        });    
+        if (downloadPageLinks.length < 1) {
+          let currentSeason = null;
+
+          const allLinks = $('td a[itemprop="url"]').each((i, element) => {
+            const href = element.attribs.href;
+            const seasonMatch = href.match(/season-(\d+)/);
+          
+            if (seasonMatch) {
+              const seasonNumber = seasonMatch[1];
+              currentSeason = `season-${seasonNumber}`;
+              episodePages[currentSeason] = [];
+            } else if (currentSeason) {
+              episodePages[currentSeason].push(siteUrl + href);
+            }
+          });
+          links = episodePages
+        } else {
+          links = await Promise.all(downloadPageLinks.slice(0,totalLink).map(async (link) => await getDownloadLink(link)))
+        }
+        return { title,pageLink:movieUrl,language, links};
       } else {
         // For tv show page data
         return {downloadLinks:[{downloadLink: `${lang}-` + 'https://www.opensubtitles.org'+ singleDwLink}]}
