@@ -13,15 +13,20 @@ router.get('/search/:movieName/:lang/:totLink/:num/readSubtitle', readMovieSubti
 // Search tv show subtitle
 router.get('/search/show/:lang/:showName', getShow)
 // Read show subtitle
-router.get('/search/:showName/:lang/:totLink/:num/readShowSubtitle', readShowSubtitle)
+router.get('/search/:showName/:season/:episode/:lang/:totLink/:num/readShowSubtitle', readShowSubtitle)
 
 async function readShowSubtitle(req,res) {
-  const paramLang =  req.params.lang //req.query.lang.split('.')[0]
+  const paramLang =  req.params.lang // req.query.lang.split('.')[0]
   const listData = req.query.listData
+  const season = req.params.season
+  const episode = req.params.episode
   try {
       if(paramLang) {
           const totalLink = req.params.totLink
-          const showName = req.params.showName;
+          const showName = req.params.showName
+          if(season && episode) {
+            showName + `S${season}E${episode}`
+          }
           const showId = await getId(showName,paramLang);
           const showData = await getSubtitleInfo(showId,paramLang,totalLink) 
           
@@ -29,9 +34,8 @@ async function readShowSubtitle(req,res) {
             res.json(showData)
             return
           }
-
-          const linkNum = showData.downloadLinks.length <= req.params.num ? showData.downloadLinks.length - 1 : req.params.num  
-          const url = showData.downloadLinks[linkNum].downloadLink.split('-')[1]
+          const linkNum = showData.links.length <= req.params.num ? showData.links.length - 1 : req.params.num  
+          const url = showData.links[linkNum].downloadLink.split('-')[1]
           const options =  { 
               method: 'GET',
               url,
@@ -74,8 +78,8 @@ async function readMovieSubtitle(req,res) {
           const movieName = req.params.movieName;
           const movieId = await getId(movieName,paramLang);
           const movieData = await getSubtitleInfo(movieId,paramLang,totalLink) 
-          const linkNum = movieData.downloadLinks.length <= req.params.num ? movieData.downloadLinks.length - 1 : req.params.num  
-          const url = movieData.downloadLinks[linkNum].downloadLink.split('-')[1]
+          const linkNum = movieData.links.length <= req.params.num ? movieData.links.length - 1 : req.params.num  
+          const url = movieData.links[linkNum].downloadLink.split('-')[1]
           const options =  { 
               method: 'GET',
               url,
@@ -184,17 +188,21 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
       const $ = cheerio.load(movieResponse.data) 
       const singleDwLink = $('#bt-dwl-bt').attr('href')
       if(!singleDwLink) {
+        const textH1 = $('.msg h1').text().trim().split(' ')
         let downloadPageLinks = [] 
         let episodePages = {}
-        const index =  $('.msg h1').text().trim().split(' ').indexOf('subtitles')
-        const title = lang.split(',').length > 1 ? $('.msg h1').text().trim().split(' ').slice(0,index).join(' ') : $('.msg h1').text().trim().split(' ').slice(0,-1).join(' ') 
-        const language = lang.split(',').length > 1 ? $('.msg h1').text().trim().split(' ').slice(index+1).join(' ') : $('.msg h1').text().trim().split(' ').slice(-1).join(' ')
-        let links 
+        const index =  textH1.indexOf('subtitles')
+        let title = lang.split(',').length > 1 ? textH1.slice(0,index).join(' ') : textH1.slice(0,-1).join(' ') 
+        let language = lang.split(',').length > 1 ? textH1.slice(index+1).join(' ') : textH1.slice(-1).join(' ')
+        let links    
         const findLinks = $('.bnone').each((index,element) => {
           downloadPageLinks.push(siteUrl + element.attribs.href)
-        });    
+        }); 
+        
         if (downloadPageLinks.length < 1) {
-          let currentSeason = null;
+          language =  lang.split(',').length > 1 ? textH1.slice(-index+1,-1).join('') : textH1.slice(-2)[0]
+          title = lang.split(',').length > 1 ? textH1.slice(0,lang.split(',').length).join(' ') : textH1.slice(0,-1).join(' ') 
+          let currentSeason = null; 
 
           const allLinks = $('td a[itemprop="url"]').each((i, element) => {
             const href = element.attribs.href;
@@ -215,7 +223,7 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
         return { title,pageLink:movieUrl,language, links};
       } else {
         // For tv show page data
-        return {downloadLinks:[{downloadLink: `${lang}-` + 'https://www.opensubtitles.org'+ singleDwLink}]}
+        return {links:[{downloadLink: `${lang}-` + 'https://www.opensubtitles.org'+ singleDwLink}]}
       }
         
     } catch (error) { 
