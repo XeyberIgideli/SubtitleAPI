@@ -23,13 +23,12 @@ async function readShowSubtitle(req,res) {
   try {
       if(paramLang) {
           const totalLink = req.params.totLink
-          const showName = req.params.showName
+          let showName = req.params.showName
           if(season && episode) {
-            showName + `S${season}E${episode}`
+            showName = showName + `-S0${season}E0${episode}`
           }
           const showId = await getId(showName,paramLang);
           const showData = await getSubtitleInfo(showId,paramLang,totalLink) 
-          
           if(listData) {
             res.json(showData)
             return
@@ -181,10 +180,10 @@ async function getId(mediaName,lang,show) {
 }
   
 async function getSubtitleInfo(mediaId,lang,totalLink) {
-    const movieUrl = `https://www.opensubtitles.org/en/search/sublanguageid-${lang}/idmovie-${mediaId}`
+    const searchUrl = `https://www.opensubtitles.org/en/search/sublanguageid-${lang}/idmovie-${mediaId}`
     const siteUrl = 'https://www.opensubtitles.org'
     try {
-      const movieResponse = await axios.get(movieUrl)
+      const movieResponse = await axios.get(searchUrl)
       const $ = cheerio.load(movieResponse.data) 
       const singleDwLink = $('#bt-dwl-bt').attr('href')
       if(!singleDwLink) {
@@ -220,7 +219,7 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
         } else {
           links = await Promise.all(downloadPageLinks.slice(0,totalLink).map(async (link) => await getDownloadLink(link)))
         }
-        return { title,pageLink:movieUrl,language, links};
+        return { title,pageLink:searchUrl,language, links};
       } else {
         // For tv show page data
         return {links:[{downloadLink: `${lang}-` + 'https://www.opensubtitles.org'+ singleDwLink}]}
