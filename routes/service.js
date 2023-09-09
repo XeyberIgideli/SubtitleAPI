@@ -3,17 +3,18 @@ import axios from 'axios'
 import cheerio from 'cheerio'
 import admZip from 'adm-zip'
 import {Readable} from 'stream'
+import { type } from 'os'
 
 const router = express.Router()
 
 // Search movie subtitle
 router.get('/search/movie/:lang/:movieName', getMovie)
 // Read movie subtitle
-router.get('/search/:movieName/:lang/:totLink/:num/readSubtitle', readMovieSubtitle)
+router.get('/:movieName/:lang/:totLink/:num/readSubtitle', readMovieSubtitle)
 // Search tv show subtitle
 router.get('/search/show/:lang/:showName', getShow)
 // Read show subtitle
-router.get('/search/:showName/:season/:episode/:lang/:totLink/:num/readShowSubtitle', readShowSubtitle)
+router.get('/:showName/:season/:episode/:lang/:totLink/:num/readShowSubtitle', readShowSubtitle)
 
 async function readShowSubtitle(req,res) {
   const paramLang =  req.params.lang // req.query.lang.split('.')[0]
@@ -114,8 +115,9 @@ async function readMovieSubtitle(req,res) {
 }
 
 async function getMovie (req, res) { 
-    // @param url: api/search/tur/the-platform
+    // @param url: api/search/movie/tur/Moviename
     // @param queries: totalLink=number
+    // @param language: use comma for multiple language
 
     let queryTotalLink = req.query.totalLink
     if(!queryTotalLink) {
@@ -137,12 +139,8 @@ async function getMovie (req, res) {
 }
 
 async function getShow (req, res) { 
-  // @param url: api/search/lang*/the-platform[?totalLink=number]
-
-  let queryTotalLink = req.query.totalLink
-  if(!queryTotalLink) {
-      queryTotalLink = 3
-  } 
+    // @param url: api/search/show/tur/Showname
+    // @param language: use comma for multiple language
   try {
     const paramLang = req.params.lang
     const showName = req.params.showName;
@@ -151,7 +149,7 @@ async function getShow (req, res) {
       throw new Error('Movie not found');
     }
     
-    const subtitleInfo = await getSubtitleInfo(showId,paramLang,queryTotalLink); 
+    const subtitleInfo = await getSubtitleInfo(showId,paramLang); 
     res.json(subtitleInfo);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -184,14 +182,15 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
     const siteUrl = 'https://www.opensubtitles.org'
     try {
       const movieResponse = await axios.get(searchUrl)
-      const $ = cheerio.load(movieResponse.data) 
+      const $ = cheerio.load(movieResponse.data)  
       const singleDwLink = $('#bt-dwl-bt').attr('href')
+      const mediaDesc = ($('fieldset p')[0].children[1].data).replace(/^\\|"|"\.$/g, '').replace(/^\s+|\s+$|\n/g, '')
       if(!singleDwLink) {
         const textH1 = $('.msg h1').text().trim().split(' ')
         let downloadPageLinks = [] 
         let episodePages = {}
         const index =  textH1.indexOf('subtitles')
-        let title = lang.split(',').length > 1 ? textH1.slice(0,index).join(' ') : textH1.slice(0,-1).join(' ') 
+        let name = lang.split(',').length > 1 ? textH1.slice(0,index).join(' ') : textH1.slice(0,-1).join(' ') 
         let language = lang.split(',').length > 1 ? textH1.slice(index+1).join(' ') : textH1.slice(-1).join(' ')
         let links    
         const findLinks = $('.bnone').each((index,element) => {
@@ -200,7 +199,7 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
         
         if (downloadPageLinks.length < 1) {
           language =  lang.split(',').length > 1 ? textH1.slice(-index+1,-1).join('') : textH1.slice(-2)[0]
-          title = lang.split(',').length > 1 ? textH1.slice(0,lang.split(',').length).join(' ') : textH1.slice(0,-1).join(' ') 
+          name = lang.split(',').length > 1 ? textH1.slice(0,lang.split(',').length).join(' ') : textH1.slice(0,-1).join(' ') 
           let currentSeason = null; 
 
           const allLinks = $('td a[itemprop="url"]').each((i, element) => {
@@ -217,15 +216,28 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
           });
           links = episodePages
         } else {
-          links = await Promise.all(downloadPageLinks.slice(0,totalLink).map(async (link) => await getDownloadLink(link)))
+          const subtitleTitle = $('#search_results tr td')
+
+          links = await Promise.all(downloadPageLinks.slice(0,totalLink).map(async (dwLink,index) => {
+            const id = dwLink.match(/\/subtitles\/(\d+)\//)[1] // regex for extract id
+            const regex = /(\w+\.\d+\.\w+(\.\w+)?\.\w+(-\w+)?)\b/g // regex for extract for subtitle title
+            const titleData = $(`#main${id}`)
+            const subtitleTitle = titleData.text().trim().split(' ')[0].match(regex) ? titleData.text().trim().split(' ')[0].match(regex)[0] : name
+            const data = await getDownloadLink(dwLink)
+            data['title'] = subtitleTitle
+            const {downloadLink,title} = data 
+            const sortedObj = {title, downloadLink}
+            return sortedObj
+          }))
         }
-        return { title,pageLink:searchUrl,language, links};
+        return { name,pageLink:searchUrl,desc:mediaDesc,language, links};
       } else {
         // For tv show page data
         return {links:[{downloadLink: `${lang}-` + 'https://www.opensubtitles.org'+ singleDwLink}]}
       }
         
-    } catch (error) { 
+    } catch (error) {  
+      console.log(error)
       throw new Error('Failed to fetch movie page')
     }
 }
