@@ -10,7 +10,7 @@ const router = express.Router()
 // Search movie subtitle
 router.get('/search/movie/:lang/:movieName', getMovie)
 // Read movie subtitle
-router.get('/:movieName/:lang/:totLink/:num/readSubtitle', readMovieSubtitle)
+router.get('/:movieName/:lang/:totLink/:num/readMovieSubtitle', readMovieSubtitle)
 // Search tv show subtitle
 router.get('/search/show/:lang/:showName', getShow)
 // Read show subtitle
@@ -185,7 +185,6 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
       const $ = cheerio.load(movieResponse.data)  
       const singleDwLink = $('#bt-dwl-bt').attr('href')
       const mediaDesc = ($('fieldset p')[0].children[1].data).replace(/^\\|"|"\.$/g, '').replace(/^\s+|\s+$|\n/g, '')
-      if(!singleDwLink) {
         const textH1 = $('.msg h1').text().trim().split(' ')
         let downloadPageLinks = [] 
         let episodePages = {}
@@ -223,7 +222,7 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
             const regex = /(\w+\.\d+\.\w+(\.\w+)?\.\w+(-\w+)?)\b/g // regex for extract for subtitle title
             const titleData = $(`#main${id}`)
             const subtitleTitle = titleData.text().trim().split(' ')[0].match(regex) ? titleData.text().trim().split(' ')[0].match(regex)[0] : name
-            const data = await getDownloadLink(dwLink)
+            const data = await getDownloadLink(dwLink,lang)
             data['title'] = subtitleTitle
             const {downloadLink,title} = data 
             const sortedObj = {title, downloadLink}
@@ -231,10 +230,7 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
           }))
         }
         return { name,pageLink:searchUrl,desc:mediaDesc,language, links};
-      } else {
-        // For tv show page data
-        return {links:[{downloadLink: `${lang}-` + 'https://www.opensubtitles.org'+ singleDwLink}]}
-      }
+      
         
     } catch (error) {  
       console.log(error)
@@ -242,15 +238,112 @@ async function getSubtitleInfo(mediaId,lang,totalLink) {
     }
 }
 
-async function getDownloadLink(subtitlePageLink) {
+async function getDownloadLink(subtitlePageLink,lang) {
     try {
       const subtitleResponse = await axios.get(subtitlePageLink);
       const $ = cheerio.load(subtitleResponse.data);
       const langShort = {
         en: 'eng',
-        tr:'tur',
-        ar:'ara',
-        ru: 'rus'
+        abk: 'abk',
+        afr: 'afr',
+        alb: 'alb',
+        ara: 'ara',
+        arg: 'arg',
+        arm: 'arm',
+        asm: 'asm',
+        ast: 'ast',
+        aze: 'aze',
+        baq: 'baq',
+        bel: 'bel',
+        ben: 'ben',
+        bos: 'bos',
+        bre: 'bre',
+        bul: 'bul',
+        bur: 'bur',
+        cat: 'cat',
+        chi: 'chi',
+        zht: 'zht',
+        zhe: 'zhe',
+        hrv: 'hrv',
+        cze: 'cze',
+        dan: 'dan',
+        prs: 'prs',
+        dut: 'dut',
+        eng: 'eng',
+        epo: 'epo',
+        est: 'est',
+        ext: 'ext',
+        fin: 'fin',
+        fre: 'fre',
+        gla: 'gla',
+        glg: 'glg',
+        geo: 'geo',
+        ger: 'ger',
+        ell: 'ell',
+        heb: 'heb',
+        hin: 'hin',
+        hun: 'hun',
+        ice: 'ice',
+        ibo: 'ibo',
+        ind: 'ind',
+        ina: 'ina',
+        gle: 'gle',
+        ita: 'ita',
+        jpn: 'jpn',
+        kan: 'kan',
+        kaz: 'kaz',
+        khm: 'khm',
+        kor: 'kor',
+        kur: 'kur',
+        lav: 'lav',
+        lit: 'lit',
+        ltz: 'ltz',
+        mac: 'mac',
+        may: 'may',
+        mal: 'mal',
+        mni: 'mni',
+        mar: 'mar',
+        mon: 'mon',
+        mne: 'mne',
+        nav: 'nav',
+        nep: 'nep',
+        sme: 'sme',
+        nor: 'nor',
+        oci: 'oci',
+        ori: 'ori',
+        per: 'per',
+        pol: 'pol',
+        por: 'por',
+        pob: 'pob',
+        pom: 'pom',
+        pus: 'pus',
+        rum: 'rum',
+        rus: 'rus',
+        sat: 'sat',
+        scc: 'scc',
+        snd: 'snd',
+        sin: 'sin',
+        slo: 'slo',
+        slv: 'slv',
+        som: 'som',
+        spa: 'spa',
+        spn: 'spn',
+        spl: 'spl',
+        swa: 'swa',
+        swe: 'swe',
+        syr: 'syr',
+        tgl: 'tgl',
+        tam: 'tam',
+        tat: 'tat',
+        tel: 'tel',
+        tha: 'tha',
+        tok: 'tok',
+        tur: 'tur',
+        tuk: 'tuk',
+        ukr: 'ukr',
+        urd: 'urd',
+        vie: 'vie',
+        wel: 'wel'
       }
       const downloadLink = `${langShort[subtitlePageLink.slice(-2)]}-` + 'https://www.opensubtitles.org' + $('#bt-dwl-bt').attr('href'); 
       if (!downloadLink) {
