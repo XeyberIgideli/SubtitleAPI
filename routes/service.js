@@ -3,9 +3,10 @@ import axios from 'axios'
 import cheerio from 'cheerio'
 import admZip from 'adm-zip'
 import {Readable} from 'stream'
-import { type } from 'os'
 
 const router = express.Router()
+
+const siteUrl = 'https://www.opensubtitles.org'
 
 // Search movie subtitle
 router.get('/search/movie/:lang/:movieName', getMovie)
@@ -179,7 +180,6 @@ async function getId(mediaName,lang,show) {
   
 async function getSubtitleInfo(mediaId,lang,totalLink) {
     const searchUrl = `https://www.opensubtitles.org/en/search/sublanguageid-${lang}/idmovie-${mediaId}`
-    const siteUrl = 'https://www.opensubtitles.org'
     try {
       const movieResponse = await axios.get(searchUrl)
       const $ = cheerio.load(movieResponse.data)  
@@ -345,7 +345,7 @@ async function getDownloadLink(subtitlePageLink,lang) {
         vie: 'vie',
         wel: 'wel'
       }
-      const downloadLink = `${langShort[subtitlePageLink.slice(-2)]}-` + 'https://www.opensubtitles.org' + $('#bt-dwl-bt').attr('href'); 
+      const downloadLink = `${langShort[subtitlePageLink.slice(-2)]}-` + siteUrl + $('#bt-dwl-bt').attr('href'); 
       if (!downloadLink) {
         throw new Error('Download link not found');
       } 
