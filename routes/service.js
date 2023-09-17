@@ -49,7 +49,7 @@ async function readShowSubtitle(req,res) {
           res.setHeader('Content-Type', 'text/plain; charset=utf-8')
   
           for (const entry of entries) {
-            if (entry.entryName.endsWith('.srt')) { 
+            if (entry.entryName.endsWith('.srt') || entry.entryName.endsWith('.ass') || entry.entryName.endsWith('.vtt')) { 
               const buffer = entry.getData() 
               srtFileStream = Readable.from(buffer.toString('utf-8'))
               break
@@ -93,7 +93,7 @@ async function readMovieSubtitle(req,res) {
           res.setHeader('Content-Type', 'text/plain; charset=utf-8')
   
           for (const entry of entries) {
-            if (entry.entryName.endsWith('.srt')) { 
+            if (entry.entryName.endsWith('.srt') || entry.entryName.endsWith('.ass') || entry.entryName.endsWith('.vtt')) { 
               const buffer = entry.getData() 
               srtFileStream = Readable.from(buffer.toString('utf-8'))
               break
