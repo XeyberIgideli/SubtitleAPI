@@ -9,13 +9,13 @@ const router = express.Router()
 const siteUrl = 'https://www.opensubtitles.org'
 
 // Search movie subtitle
-router.get('/api/search/movie/:lang/:movieName', getMovie)
+router.get('/search/movie/:lang/:movieName', getMovie)
 // Read movie subtitle
-router.get('/api/:movieName/:lang/:totLink/:num/readMovieSubtitle', readMovieSubtitle)
+router.get('/:movieName/:lang/:totLink/:num/readMovieSubtitle', readMovieSubtitle)
 // Search tv show subtitle
-router.get('/api/search/show/:lang/:showName', getShow)
+router.get('/search/show/:lang/:showName', getShow)
 // Read show subtitle
-router.get('/api/:showName/:season/:episode/:lang/:totLink/:num/readShowSubtitle', readShowSubtitle)
+router.get('/:showName/:season/:episode/:lang/:totLink/:num/readShowSubtitle', readShowSubtitle)
 
 async function readShowSubtitle(req,res) {
   const paramLang =  req.params.lang // req.query.lang.split('.')[0]
@@ -159,7 +159,7 @@ async function getShow (req, res) {
 }
 
 async function getId(mediaName,lang,type) {
-    const searchUrl = `https://www.opensubtitles.org/en/search2/moviename-${mediaName}/sublanguageid-all`;
+    const searchUrl = `https://www.opensubtitles.org/en/search2/sublanguageid-all/moviename-${mediaName}`;
     try {
       
       const searchResponse = await axios.get(searchUrl);
