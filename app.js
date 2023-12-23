@@ -1,10 +1,9 @@
-import express from 'express'
+import express from 'express' 
 import scraper from './routes/service.js'
 
 const port = 4500
 
-const app = express()
-
+const app = express() 
 
 app.use('/api', scraper)
 
